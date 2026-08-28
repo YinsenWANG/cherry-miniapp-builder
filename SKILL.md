@@ -17,10 +17,11 @@ This is a portable Agent Skill, not a Codex-specific workflow. It must produce t
 - Use the current host's ordinary file, shell, and editing capabilities. Do not require Codex-only directives, Claude-only commands, Pi extensions, or Cherry Studio orchestration APIs.
 - Distinguish the **agent host**, which builds and packages files, from the **target runtime**, which is Cherry Studio's sandboxed `window.cherry` mini-app environment. Host capabilities never expand the target runtime's permissions.
 - If a host cannot run Python helpers, follow the referenced contract manually and disclose that automated catalog search, validation, or packaging did not run.
+- Commands below use `python3`. On Windows or another host where Python 3 is exposed as `python` or `py -3`, use that launcher without changing the workflow.
 
 ## Route the request
 
-- **Build or convert an app:** read [references/technical-contract.md](references/technical-contract.md), [references/build-playbook.md](references/build-playbook.md), and [references/quality-bar.md](references/quality-bar.md).
+- **Build or convert an app:** read [references/technical-contract.md](references/technical-contract.md), [references/build-playbook.md](references/build-playbook.md), [references/archetypes.md](references/archetypes.md), and [references/quality-bar.md](references/quality-bar.md).
 - **Brainstorm or select a domain:** from the skill directory, run `python3 scripts/search_templates.py "<request>"`; read only the returned templates. Use [references/domain-index.md](references/domain-index.md) when the request is too broad to search well.
 - **Regulated or high-stakes domain:** also read [references/high-stakes-domains.md](references/high-stakes-domains.md).
 - **Publish or update a remotely distributed package:** also read the distribution section of [references/technical-contract.md](references/technical-contract.md).
@@ -30,10 +31,10 @@ This is a portable Agent Skill, not a Codex-specific workflow. It must produce t
 
 When the user has supplied a useful goal, proceed without asking them to choose a framework, layout, color, storage shape, or permission list.
 
-1. Search the domain catalog and combine at most three relevant patterns.
-2. Infer a narrow primary user, one core job, and a start-to-finish success path.
+1. Search the domain catalog and combine at most three relevant patterns. Keep the best result's archetype, required capabilities, optional enhancements, and AI mode unless the requested product proves a better choice.
+2. Infer a narrow primary user, one core job, and a start-to-finish success path. Use the matching archetype as the interaction skeleton, not as generic copy.
 3. Default to bundled HTML, CSS, and JavaScript with no build step or remote assets. Use another stack only when requested or materially useful; ship its built static output.
-4. From the skill directory, start with `python3 scripts/scaffold_app.py --id <reverse.dns.id> --name <name> --description <description> --output <directory>` when creating a new app.
+4. From the skill directory, start with `python3 scripts/scaffold_app.py --id <reverse.dns.id> --name <name> --description <description> --template-id <catalog-id> --output <directory>` when creating a new app. If no catalog result fits, use `--archetype <type>` and explicit capability flags. Use `--ephemeral` for a no-storage product.
 5. Replace all starter copy and sample logic. Include realistic example data, an immediately understandable first screen, and a complete empty/loading/error/success flow.
 6. Request the least privilege that makes the core job work. Put enhancement-only capabilities in `optionalPermissions`. Do not request network access without exact known hosts.
 7. Make the app useful without AI when possible. When AI is essential, check `ai.getCapabilities()` first, stream visibly, support cancel, preserve the user's input, and provide a retry path.
@@ -68,6 +69,7 @@ Do not claim installation or runtime behavior was tested unless it actually ran 
 
 - [Technical contract](references/technical-contract.md) — authoritative author-facing constraints derived from PR #19475.
 - [Build playbook](references/build-playbook.md) — implementation sequence and robust capability patterns.
+- [Product archetypes](references/archetypes.md) — twelve reusable interaction and completion structures.
 - [Quality bar](references/quality-bar.md) — usability and completion criteria.
 - [Domain index](references/domain-index.md) — 25 families and 200 reusable templates.
 - [High-stakes domains](references/high-stakes-domains.md) — medical, legal, financial, employment, industrial, and public-sector boundaries.

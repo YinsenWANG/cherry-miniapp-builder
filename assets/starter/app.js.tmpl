@@ -26,6 +26,7 @@ function publicMessage(error) {
 }
 
 async function loadState() {
+  /* PERSISTENCE_START */
   if (!window.cherry) return memory
   try {
     const { value } = await cherry.storage.get(STATE_KEY)
@@ -36,9 +37,12 @@ async function loadState() {
     toast(publicMessage(error))
     return { items: [] }
   }
+  /* PERSISTENCE_END */
+  return memory
 }
 
 async function saveState() {
+  /* PERSISTENCE_START */
   if (!window.cherry) return
   $('#save-status').textContent = 'Saving…'
   try {
@@ -48,6 +52,8 @@ async function saveState() {
     $('#save-status').textContent = 'Not saved'
     toast(publicMessage(error))
   }
+  /* PERSISTENCE_END */
+  $('#save-status').textContent = window.cherry ? 'Session only' : 'Browser preview'
 }
 
 function scheduleSave({ immediate = false } = {}) {

@@ -67,28 +67,30 @@ Codex can invoke it as `$cherry-miniapp-builder`. Pi Agent additionally exposes 
 - A concise skill router and one-shot build workflow.
 - One platform-neutral skill package for Claude Code, Codex, Pi Agent, and Cherry Studio.
 - A versioned technical contract covering the manifest, sandbox, permissions, quotas, lifecycle, theming, packaging, updates, and activity log.
-- 200 cross-domain patterns searchable by Chinese or English keywords.
-- A dependency-free starter that works without a build tool or CDN.
-- Standard-library scripts to search templates, scaffold, validate, and package an app.
+- 200 cross-domain patterns searchable by Chinese or English intent, backed by a 40-query regression set.
+- Twelve product archetypes spanning calculators, analyzers, dashboards, trackers, planners, checklists, studios, coaches, simulators, games, comparators, and coordinators.
+- A dependency-free starter that can inherit a template's product structure, core permissions, optional enhancements, and AI role without a build tool or CDN.
+- Standard-library scripts to search templates, scaffold, validate, and deterministically package an app.
 - High-stakes guardrails for medical, legal, financial, employment, industrial, and public-sector use cases.
 
 ## Utilities
 
 ```bash
 python3 scripts/search_templates.py "工业设备预测性维护"
-python3 scripts/scaffold_app.py --id com.example.maintenance --name "维护助手" --description "管理设备点检并分析异常趋势" --output /tmp/maintenance-app
+python3 scripts/scaffold_app.py --id com.example.maintenance --name "维护助手" --description "管理设备点检并分析异常趋势" --template-id manufacturing-maintenance --output /tmp/maintenance-app
 python3 scripts/validate_app.py /tmp/maintenance-app
 python3 scripts/package_app.py /tmp/maintenance-app
+python3 scripts/validate_catalog.py
 python3 scripts/test_tools.py
 ```
 
-The validator catches authoring errors and common sandbox incompatibilities. A green result does not replace testing in a Cherry Studio build that contains the Real Mini App runtime.
+Use `python` or `py -3` instead of `python3` on hosts that expose Python 3 under those names. The validator catches manifest errors, unused permissions, and common sandbox incompatibilities. A green result does not replace testing in a Cherry Studio build that contains the Real Mini App runtime. GitHub Actions runs the catalog and toolchain tests on Windows, macOS, and Linux with Python 3.9 and the current Python line.
 
 `agents/openai.yaml` contains optional Codex UI metadata only. Claude Code, Pi Agent, and Cherry Studio ignore it and consume the shared `SKILL.md` directly.
 
 ## Upstream status
 
-The technical contract is pinned to the PR snapshot recorded in [references/source-provenance.md](references/source-provenance.md). PR #19475 was still under review when this repository was created, so re-check the upstream contract before publishing production packages.
+The technical contract is pinned to the live PR snapshot recorded in [references/source-provenance.md](references/source-provenance.md). PR #19475 remains open at that snapshot and may still change, so re-check the upstream contract before publishing production packages.
 
 ## License
 

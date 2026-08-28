@@ -11,7 +11,15 @@ Write a private one-paragraph product brief before coding:
 - what is deterministic versus AI-assisted;
 - what persists and what may leave the sandbox.
 
-Select up to three catalog templates. Use one as the structural pattern and borrow only clearly compatible mechanics from the others.
+Select up to three catalog templates. Use one as the structural pattern and borrow only clearly compatible mechanics from the others. Keep its `archetype`, `requiredCapabilities`, `optionalCapabilities`, and `aiMode` as the starting product brief; change them only when the user's actual flow justifies it.
+
+Scaffold directly from the primary template when possible:
+
+```text
+python3 scripts/scaffold_app.py --id com.example.app --name "App" --description "One useful outcome" --template-id <catalog-id> --output <directory>
+```
+
+The scaffold uses the matching interaction shape and permission split. It remains a starting surface: replace every generic item field and sentence with the domain's real inputs, results, and actions.
 
 ## 2. Choose capabilities
 
@@ -38,6 +46,8 @@ Default to three layers:
 3. A secondary history/settings/help surface that does not compete with the task.
 
 For dense analytical apps, use overview → inspect → act. For calculators, use inputs → live result → assumptions → export. For creative tools, use source → controls → preview → save. For games, show play immediately and move rules/settings aside.
+
+Use [archetypes.md](archetypes.md) for the full twelve-pattern completion contract. Do not blend archetypes into a portal; choose one dominant loop and borrow at most one secondary mechanic.
 
 ## 4. Build for first-run success
 
@@ -97,6 +107,8 @@ Keep the prompt inside the app's declared purpose. Stream into an accessible liv
 ## 8. Package and verify
 
 Run the validator before packaging. Inspect the output archive to ensure `manifest.json` and the entry are at its root. For remote distribution, separately compute the archive hash and size, then create the external distribution manifest—never place its `package` block inside the archive.
+
+Treat validator warnings as review prompts. Remove unused permissions and known blocked browser APIs; suppress nothing merely to get a green line. Static checks can miss dynamic property access and cannot prove runtime behavior.
 
 Runtime-check, when a compatible Cherry build is available:
 
