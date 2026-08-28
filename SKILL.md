@@ -1,16 +1,27 @@
 ---
 name: cherry-miniapp-builder
 description: Create, improve, package, or brainstorm polished Cherry Studio Real Mini Apps from natural-language requests. Use when a user wants an installable .miniapp, a Cherry mini-app prototype, domain ideas, or a conversion from HTML/tool/workflow into the sandboxed window.cherry platform; not for ordinary websites or changes to Cherry Studio itself.
+metadata:
+  compatibility: Agent Skills-compatible hosts including Claude Code, Codex, Pi Agent, and Cherry Studio. Python 3.9+ is required for the bundled helper scripts.
 ---
 
 # Cherry Mini App Builder
 
 Turn an idea into a usable, installable Cherry Studio mini app. Favor a complete working artifact over a plan or tutorial.
 
+## Host neutrality
+
+This is a portable Agent Skill, not a Codex-specific workflow. It must produce the same app and apply the same safety boundaries when invoked from Claude Code, Codex, Pi Agent, or a Cherry Studio agent.
+
+- Resolve every relative resource path from the directory containing this `SKILL.md`; do not assume the current working directory is the skill directory.
+- Use the current host's ordinary file, shell, and editing capabilities. Do not require Codex-only directives, Claude-only commands, Pi extensions, or Cherry Studio orchestration APIs.
+- Distinguish the **agent host**, which builds and packages files, from the **target runtime**, which is Cherry Studio's sandboxed `window.cherry` mini-app environment. Host capabilities never expand the target runtime's permissions.
+- If a host cannot run Python helpers, follow the referenced contract manually and disclose that automated catalog search, validation, or packaging did not run.
+
 ## Route the request
 
 - **Build or convert an app:** read [references/technical-contract.md](references/technical-contract.md), [references/build-playbook.md](references/build-playbook.md), and [references/quality-bar.md](references/quality-bar.md).
-- **Brainstorm or select a domain:** run `python3 scripts/search_templates.py "<request>"`; read only the returned templates. Use [references/domain-index.md](references/domain-index.md) when the request is too broad to search well.
+- **Brainstorm or select a domain:** from the skill directory, run `python3 scripts/search_templates.py "<request>"`; read only the returned templates. Use [references/domain-index.md](references/domain-index.md) when the request is too broad to search well.
 - **Regulated or high-stakes domain:** also read [references/high-stakes-domains.md](references/high-stakes-domains.md).
 - **Publish or update a remotely distributed package:** also read the distribution section of [references/technical-contract.md](references/technical-contract.md).
 - **Audit an existing app:** validate it, then compare its behavior against the technical contract and quality bar. Do not rebuild it unless requested.
@@ -22,13 +33,13 @@ When the user has supplied a useful goal, proceed without asking them to choose 
 1. Search the domain catalog and combine at most three relevant patterns.
 2. Infer a narrow primary user, one core job, and a start-to-finish success path.
 3. Default to bundled HTML, CSS, and JavaScript with no build step or remote assets. Use another stack only when requested or materially useful; ship its built static output.
-4. Start from `python3 scripts/scaffold_app.py --id <reverse.dns.id> --name <name> --description <description> --output <directory>` when creating a new app.
+4. From the skill directory, start with `python3 scripts/scaffold_app.py --id <reverse.dns.id> --name <name> --description <description> --output <directory>` when creating a new app.
 5. Replace all starter copy and sample logic. Include realistic example data, an immediately understandable first screen, and a complete empty/loading/error/success flow.
 6. Request the least privilege that makes the core job work. Put enhancement-only capabilities in `optionalPermissions`. Do not request network access without exact known hosts.
 7. Make the app useful without AI when possible. When AI is essential, check `ai.getCapabilities()` first, stream visibly, support cancel, preserve the user's input, and provide a retry path.
 8. Persist meaningful state as it changes. Treat every start as crash recovery and `app.visibilityChange(false)` as a checkpoint, not as a guaranteed shutdown.
 9. Adapt to Cherry theme, keyboard use, narrow panes, dark mode, locale changes, and revoked optional permissions.
-10. Run `python3 scripts/validate_app.py <directory>`, fix every error and relevant warning, then run `python3 scripts/package_app.py <directory>`.
+10. From the skill directory, run `python3 scripts/validate_app.py <directory>`, fix every error and relevant warning, then run `python3 scripts/package_app.py <directory>`.
 
 If the user does not control a reverse-DNS namespace, use `com.example.<slug>` and clearly identify it as a replaceable development id. Never use the reserved `com.cherrystudio.*` namespace.
 
