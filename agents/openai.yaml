@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cherry Mini App Builder"
+  short_description: "Build polished Cherry Studio mini apps from one prompt"
+  default_prompt: "Use $cherry-miniapp-builder to turn my idea into a complete installable Cherry Studio mini app."

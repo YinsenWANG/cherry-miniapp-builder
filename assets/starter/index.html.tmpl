@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>__APP_NAME_HTML__</title>
+    <link rel="stylesheet" href="/__cherry/theme.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Cherry Mini App</p>
+          <h1>__APP_NAME_HTML__</h1>
+        </div>
+        <span id="save-status" class="status" role="status">Ready</span>
+      </header>
+
+      <main>
+        <section class="hero card">
+          <div>
+            <p class="eyebrow">Your workspace</p>
+            <h2>Turn one clear input into a useful result</h2>
+            <p class="muted">Replace this starter workflow with the domain-specific primary task.</p>
+          </div>
+          <button id="primary-action" class="primary" type="button">Create result</button>
+        </section>
+
+        <section class="grid" aria-label="Workspace">
+          <form id="item-form" class="card stack">
+            <div>
+              <p class="eyebrow">Input</p>
+              <h2>Add an item</h2>
+            </div>
+            <label>
+              Title
+              <input id="item-title" name="title" maxlength="120" placeholder="A concrete next step" required />
+            </label>
+            <label>
+              Notes
+              <textarea id="item-notes" name="notes" rows="5" maxlength="1000" placeholder="Useful context"></textarea>
+            </label>
+            <button class="secondary" type="submit">Add to workspace</button>
+          </form>
+
+          <section class="card stack" aria-labelledby="results-title">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Output</p>
+                <h2 id="results-title">Recent items</h2>
+              </div>
+              <button id="clear-items" class="ghost" type="button">Clear</button>
+            </div>
+            <div id="empty-state" class="empty">Add an item to begin.</div>
+            <ul id="item-list" class="item-list"></ul>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
