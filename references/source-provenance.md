@@ -2,9 +2,9 @@
 
 This skill was derived from Cherry Studio PR [#19475](https://github.com/CherryHQ/cherry-studio/pull/19475), `feat(mini-app): add real local mini apps in a sandbox`.
 
-- Reviewed upstream commit: `6f04e529a6331752fc10b9ecede4da2e7aa82819`
+- Reviewed upstream commit: `9d1c45c43a64e57c3c133e4517532f0f406d5b1e`
 - Merge-base used for the complete diff: `d2b300751c33757469203f74b9c9604b6bbf43cf`
-- Scope at extraction: 221 files, 33,528 insertions, 384 deletions
+- Scope at extraction: 221 files, 33,635 insertions, 384 deletions
 - Extraction date: 2026-08-28
 
 ## Contract sources
@@ -21,6 +21,8 @@ The author-facing rules were cross-checked against:
 - migration, path, activity-log, usage-attribution, and packaging changes in the PR
 
 The skill intentionally records the public author contract rather than copying host internals. Internal recovery, database, session, and IPC implementation details matter to Cherry maintainers but are not APIs a mini app may rely on.
+
+The final upstream increment reviewed for this snapshot makes startup recovery return per-app failures and prevents only unrepaired apps from preparing a guest. It closes an internal fail-open window without changing the author-facing manifest or `window.cherry` contract.
 
 ## Updating this skill
 
