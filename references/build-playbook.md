@@ -11,7 +11,7 @@ Write a private one-paragraph product brief before coding:
 - what is deterministic versus AI-assisted;
 - what persists and what may leave the sandbox.
 
-Select up to three catalog templates. Use one as the structural pattern and borrow only clearly compatible mechanics from the others.
+When a request includes a domain workflow, asks for ideas, or benefits from comparison, search a few catalog templates for compatible mechanics. Templates are inspiration, not permission grants or structural instructions.
 
 ## 2. Choose capabilities
 
@@ -29,15 +29,17 @@ Start with no permissions, then add only what the flow proves it needs.
 
 Do not request `storage.*` or `file.*` merely for convenience when two leaves suffice. Never embed API secrets.
 
+`file.save`/`file.load` data and `network.fetch` request/response bodies are Base64; for text, use a correct UTF-8/Base64 conversion rather than passing ordinary strings.
+
 ## 3. Shape the information architecture
 
-Default to three layers:
+Common shapes to take inspiration from include:
 
 1. A compact header naming the job and current status.
 2. A primary workspace with one obvious call to action.
 3. A secondary history/settings/help surface that does not compete with the task.
 
-For dense analytical apps, use overview → inspect → act. For calculators, use inputs → live result → assumptions → export. For creative tools, use source → controls → preview → save. For games, show play immediately and move rules/settings aside.
+For dense analytical apps, consider overview → inspect → act. For calculators, consider inputs → live result → assumptions → export. For creative tools, consider source → controls → preview → save. For games, show play immediately and move rules/settings aside. Products may reduce, merge, or choose another structure.
 
 ## 4. Build for first-run success
 
@@ -47,6 +49,7 @@ For dense analytical apps, use overview → inspect → act. For calculators, us
 - Keep destructive actions reversible or confirmed.
 - Show units, time ranges, formula assumptions, provenance, and staleness beside results.
 - Use domain language, not generic labels such as “Submit” or “Process”.
+- When applicable, keep large datasets responsive with pagination, filtering, aggregation, or virtualization; give charts textual summaries; and check deterministic calculations against at least three meaningful cases including an edge case.
 
 ## 5. Implement resilient host access
 

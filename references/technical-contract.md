@@ -12,11 +12,11 @@ Required manifest fields:
 - `name`: non-empty string or locale table containing at least `en` or `zh`; each value at most 64 characters, at most 20 locales.
 - `description`: same localization shape, each value at most 200 characters.
 - `version`: valid semver, at most 32 characters.
-- `entry`: existing regular package-relative POSIX path. It cannot be absolute, contain `..` or backslashes, or start with `__cherry`.
+- `entry`: existing regular package-relative POSIX path. It cannot be absolute, contain `..` or backslashes, start with `__cherry`, or have a path segment beginning with `.`.
 
 Optional fields:
 
-- `icon: { path, sha256 }`: both fields required together; lowercase SHA-256 of an icon no larger than 5 MB.
+- `icon: { path, sha256 }`: both fields required together; path segments cannot begin with `.`, and `sha256` is lowercase SHA-256 of an icon no larger than 5 MB.
 - `releaseNotes`: localized plain text, at most 500 characters per value.
 - `permissions` and `optionalPermissions`: at most 32 declarations each. Required and optional sets cannot overlap after wildcard expansion.
 - `network`: at most 20 unique bare hostnames. No scheme, path, port, wildcard, IP literal, or numeric final label.
@@ -68,34 +68,6 @@ Every method except `cherry.on` returns a Promise. Rejections are plain `{ name,
 
 Theme is not an API field. Use `prefers-color-scheme`.
 
-### AI
-
-- `ai.getCapabilities({ model?: 'default' | 'quick' })` returns `{ available: false }` or `{ available: true, reasoning, contextWindow }`.
-- `ai.chat({ messages, reasoning?, model? }, { onChunk, callId? })` streams text and resolves `{ ok: true }`.
-- `ai.cancel(callId)` is idempotent.
-
-AI is text-only, with no image input or tool calling. Maximum 64 messages and 256 KB UTF-8 prompt input; two calls in flight and 60 starts per minute per app. While hidden, only five new calls are allowed until visible again. `callId` is at most 64 characters. Check model availability before exposing the action, preserve partial output, and handle both a resolved cancellation and `Cancelled` rejection.
-
-### Storage
-
-`get`, `set`, `delete`, `keys`, and `usage` operate on string keys and values. Total serialized state is 1 MB and 1,000 keys; keys are at most 256 UTF-8 bytes. Writes are limited to 20 per second and a byte-rate bucket. There are no multi-key transactions: save related state in one JSON value.
-
-### Files
-
-`save`, `load`, `list`, `delete`, `usage`, and `export` use a flat logical namespace. Binary payloads are base64. Names are 1–128 characters with no slash or backslash and cannot be `.` or `..`. Maximum 10 MB per file, 20 MB and 200 files per app. `export` works only while visible, opens one host-owned save dialog, and never reveals a path.
-
-### Notifications
-
-`notification.show({ title, body? })` is one-way. Title and body are truncated to 64 and 256 characters. Maximum five calls per minute. The host identifies the originating app; no click event is delivered.
-
-### Clipboard
-
-`clipboard.read()` and `clipboard.write({ text })` handle plain text only. They require both a visible pane and keyboard focus, so call them from a user action. Maximum text is 1,048,576 characters; rates are 10 reads and 30 writes per minute.
-
-### Network
-
-`network.fetch({ url, method?, headers?, body? })` is the only outbound channel. It accepts HTTPS on the default port to exact declared hosts; no redirects, cookies, credentials, IP literals, or non-global resolved addresses. Non-2xx is a normal result. Request and response bodies are base64, capped at 1 MB and 5 MB. At most 32 headers; hop-by-hop headers plus host, origin, referer, cookie, and content-length are rejected. Timeout is 30 seconds; rates are 60 per minute and four in flight. While hidden, only ten new requests are allowed until visible again. A documented DNS-rebinding residual remains between the pre-check and Chromium connection.
-
 ## Lifecycle and persistence
 
 The app may be destroyed without notice when a tab closes, the keep-alive pool evicts it, Cherry quits, a renderer crashes, or an update quiesces it. No unload hook is reliable and in-flight work may disappear.
@@ -114,7 +86,39 @@ The same app can have multiple live instances. JavaScript memory is per instance
 
 Include `<link rel="stylesheet" href="/__cherry/theme.css">`. Use the stable semantic variables such as `--background`, `--foreground`, `--card`, `--primary`, `--muted`, `--border`, `--success`, `--warning`, `--error`, and `--radius`. The stylesheet supplies light and dark values but no reset or component styles. Bundle icons and compiled CSS locally.
 
-## Distribution, updates, and data
+## Appendices: read only when applicable
+
+The following precise capability, distribution, and audit details remain part of the contract, but a simple local build need not load them all.
+
+### AI capability and quota appendix
+
+- `ai.getCapabilities({ model?: 'default' | 'quick' })` returns `{ available: false }` or `{ available: true, reasoning, contextWindow }`; when available, `reasoning` is a boolean.
+- `ai.chat({ messages, reasoning?: 'on' | 'off', model? }, { onChunk, callId? })` streams text and resolves `{ ok: true }`. Do not pass the capability boolean through: explicitly map or choose `'on'`/`'off'`.
+- `ai.cancel(callId)` is idempotent.
+
+AI is text-only, with no image input or tool calling. Maximum 64 messages and 256 KB UTF-8 prompt input; two calls in flight and 60 starts per minute per app. While hidden, only five new calls are allowed until visible again. `callId` is at most 64 characters. Check model availability before exposing the action, preserve partial output, and handle both a resolved cancellation and `Cancelled` rejection.
+
+### Storage quota appendix
+
+`get`, `set`, `delete`, `keys`, and `usage` operate on string keys and values. Total serialized state is 1 MB and 1,000 keys; keys are at most 256 UTF-8 bytes. Writes are limited to 20 per second and a byte-rate bucket. There are no multi-key transactions: save related state in one JSON value.
+
+### Files appendix
+
+`save`, `load`, `list`, `delete`, `usage`, and `export` use a flat logical namespace. Binary payloads are base64. `file.save`/`file.load` data and `network.fetch` request/response bodies are Base64; for text, use a correct UTF-8/Base64 conversion rather than passing ordinary strings. Names are 1–128 characters with no slash or backslash and cannot be `.` or `..`. Maximum 10 MB per file, 20 MB and 200 files per app. `export` works only while visible, opens one host-owned save dialog, and never reveals a path.
+
+### Notifications quota appendix
+
+`notification.show({ title, body? })` is one-way. Title and body are truncated to 64 and 256 characters. Maximum five calls per minute. The host identifies the originating app; no click event is delivered.
+
+### Clipboard quota appendix
+
+`clipboard.read()` and `clipboard.write({ text })` handle plain text only. They require both a visible pane and keyboard focus, so call them from a user action. Maximum text is 1,048,576 characters; rates are 10 reads and 30 writes per minute.
+
+### Network and DNS appendix
+
+`network.fetch({ url, method?, headers?, body? })` is the only outbound channel. It accepts HTTPS on the default port to exact declared hosts; no redirects, cookies, credentials, IP literals, or non-global resolved addresses. Non-2xx is a normal result. Request and response bodies are base64, capped at 1 MB and 5 MB. At most 32 headers; hop-by-hop headers plus host, origin, referer, cookie, and content-length are rejected. Timeout is 30 seconds; rates are 60 per minute and four in flight. While hidden, only ten new requests are allowed until visible again. A documented DNS-rebinding residual remains between the pre-check and Chromium connection.
+
+### Distribution, updates, and data appendix
 
 A remote distribution manifest repeats the packaged manifest and adds:
 
@@ -134,6 +138,6 @@ Normal updates require a strictly greater semver. New required permissions, newl
 
 Packages are not signed in this release. Hashes provide integrity for pinned remote bytes and icons, not author identity.
 
-## Activity log
+### Activity log appendix
 
 The host records every refusal, outward capability call, permission decision, and aggregate counts for local calls. It records metadata such as duration, host, byte counts, model slot, and outcome—never prompts, payloads, storage keys, file names, clipboard text, or notification copy. Design denied and failed states as visible UI; repeated hidden failures will also be visible to the user in this log.

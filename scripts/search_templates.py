@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Search the 200-template Cherry mini-app idea catalog."""
+"""Search the Cherry mini-app idea catalog."""
 
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def load_catalog(root: Path) -> list[dict]:
 
 def terms(text: str) -> set[str]:
     lowered = text.casefold()
-    chunks = set(re.findall(r"[a-z0-9][a-z0-9-]+|[\u3400-\u9fff]{2,}", lowered))
+    chunks = set(re.findall(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|[\u3400-\u9fff]+", lowered))
     for chunk in list(chunks):
         if re.fullmatch(r"[\u3400-\u9fff]+", chunk):
             chunks.update(chunk[index:index + 2] for index in range(len(chunk) - 1))
@@ -31,19 +31,42 @@ def terms(text: str) -> set[str]:
 
 
 def score(item: dict, query: str) -> int:
-    identity = " ".join([item["title"], item["category"], *item["keywords"]]).casefold()
+    title = item["title"].casefold()
+    keyword_values = [keyword.casefold() for keyword in item["keywords"]]
+    keywords = " ".join(keyword_values)
+    category = item["category"].casefold()
     product = " ".join([item["audience"], item["outcome"], item["flow"]]).casefold()
-    haystack = " ".join([identity, product, item["ai"], item["guardrail"]]).casefold()
     query_lower = query.casefold().strip()
-    value = 30 if query_lower and query_lower in haystack else 0
+    value = 0
+    if query_lower:
+        if query_lower == title or query_lower in keyword_values:
+            value += 80
+        elif query_lower in title:
+            value += 45
+        elif query_lower in category:
+            value += 30
+        elif query_lower in product:
+            value += 15
     for term in terms(query):
-        if term in identity:
-            value += 9 if len(term) > 2 else 4
-        elif term in product:
-            value += 4 if len(term) > 2 else 2
-        elif term in haystack:
-            value += 1
+        weight = 1 if len(term) == 1 and term.isascii() else 3
+        def contains(value: str) -> bool:
+            if len(term) == 1 and term.isascii():
+                return bool(re.search(rf"(?<![a-z0-9]){re.escape(term)}(?![a-z0-9])", value))
+            return term in value
+        if term == title or term in keyword_values:
+            value += 30 * weight
+        elif contains(title) or contains(keywords):
+            value += 20 * weight
+        elif contains(category):
+            value += 11 * weight
+        elif contains(product):
+            value += 4 * weight
     return value
+
+
+def rank(items: list[dict], query: str) -> list[tuple[int, dict]]:
+    """Return the single deterministic ranking used by both CLI and tests."""
+    return sorted(((score(item, query), item) for item in items), key=lambda pair: (-pair[0], pair[1]["id"]))
 
 
 def render(item: dict) -> str:
@@ -55,7 +78,7 @@ def render(item: dict) -> str:
             f"- Audience: {item['audience']}",
             f"- Outcome: {item['outcome']}",
             f"- Core flow: {item['flow']}",
-            f"- Suggested capabilities: {capabilities}",
+            f"- 可能涉及的能力（须按实际调用重推最小 leaf）: {capabilities}",
             f"- AI role: {item['ai']}",
             f"- Guardrail: {item['guardrail']}",
         ]
@@ -73,7 +96,7 @@ def main() -> int:
     items = load_catalog(root)
     if args.category:
         items = [item for item in items if item["category"] == args.category]
-    ranked = sorted(((score(item, args.query), item) for item in items), key=lambda pair: (-pair[0], pair[1]["id"]))
+    ranked = rank(items, args.query)
     if args.query:
         best = ranked[0][0] if ranked else 0
         ranked = [pair for pair in ranked if pair[0] >= max(2, int(best * 0.4))]

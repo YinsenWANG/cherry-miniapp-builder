@@ -1,6 +1,6 @@
 # Domain template index
 
-The searchable catalog contains exactly 200 patterns: 25 domain families with eight templates each. Run `python3 scripts/search_templates.py "<user need>"` and read only the returned records. Use `--category <id> --limit 8` to inspect a whole family.
+The searchable catalog currently contains 200 patterns across 25 domain families. Run `python3 scripts/search_templates.py "<user need>"` and read only returned records. Use `--category <id> --limit 8` to inspect a whole family. A record's capabilities are possible capabilities (须按实际调用重推最小 leaf), never a permission grant.
 
 | Category id | Coverage |
 |---|---|

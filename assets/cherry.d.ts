@@ -51,7 +51,7 @@ declare global {
   /** Text only — there is no image input channel, which is why `vision` is not reported. */
   interface CherryChatParams {
     messages: { role: 'system' | 'user' | 'assistant'; content: string }[]
-    /** Whether a reasoning model may think first. `'off'` when omitted; ignored by models that cannot switch. */
+    /** `'on'`/`'off'` switch, not the boolean returned by getCapabilities().reasoning; map explicitly. `'off'` when omitted. */
     reasoning?: 'on' | 'off'
     /** Which of the user's two model slots answers; `'default'` when omitted. */
     model?: 'default' | 'quick'

@@ -29,7 +29,11 @@ NAMESPACES = {item.split(".", 1)[0] for item in GRANTS}
 WINDOWS_RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(10)} | {f"lpt{i}" for i in range(10)}
 ID_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$")
 HOST_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$")
-SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
+SEMVER_RE = re.compile(
+    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
 
 
 @dataclass(frozen=True)
@@ -72,7 +76,7 @@ def safe_relative(value: object) -> bool:
     if not isinstance(value, str) or not value or value.startswith("/") or "\\" in value:
         return False
     parts = value.split("/")
-    return ".." not in parts and parts[0] != "__cherry"
+    return ".." not in parts and parts[0] != "__cherry" and not any(part.startswith(".") for part in parts)
 
 
 def iter_files(root: Path):
@@ -86,6 +90,8 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
     text_suffixes = {".html", ".htm", ".js", ".mjs", ".cjs", ".ts", ".tsx", ".css", ".json", ".svg"}
     combined: list[tuple[Path, str]] = []
     for path in iter_files(root):
+        if path.is_symlink():
+            continue
         if path.suffix.lower() not in text_suffixes or path.stat().st_size > 2 * 1024 * 1024:
             continue
         try:
@@ -112,7 +118,14 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
             if key not in seen and re.search(pattern, text):
                 out.append(Finding("warning", f"{relative}: {message}"))
                 seen.add(key)
-        if re.search(r"(?:src|href)\s*=\s*['\"]https?://", text, re.I) or re.search(r"@import\s+['\"]https?://", text, re.I):
+        if re.search(
+            r"<(?:script|img|audio|video|source|iframe)\b[^>]*\bsrc\s*=\s*['\"]https?://|"
+            r"<link\b[^>]*\brel\s*=\s*['\"][^'\"]*stylesheet[^'\"]*['\"][^>]*\bhref\s*=\s*['\"]https?://|"
+            r"<link\b[^>]*\bhref\s*=\s*['\"]https?://[^>]*\brel\s*=\s*['\"][^'\"]*stylesheet[^'\"]*['\"]|"
+            r"@import\s+(?:url\(\s*)?(?:['\"])?https?://",
+            text,
+            re.I,
+        ):
             out.append(Finding("warning", f"{relative}: remote runtime assets are blocked; bundle them"))
 
     joined = "\n".join(text for _, text in combined)
@@ -127,7 +140,7 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
     }
     for call, grant in call_to_grant.items():
         if call in joined and grant not in declarations:
-            out.append(Finding("error", f"source calls {call} but manifest does not declare {grant}"))
+            out.append(Finding("warning", f"heuristic: source mentions {call}; confirm actual calls and declare the minimal permission {grant} if needed"))
 
     html_files = [text for path, text in combined if path.suffix.lower() in {".html", ".htm"}]
     if html_files and not any('/__cherry/theme.css' in text for text in html_files):
@@ -169,14 +182,14 @@ def validate(root: Path) -> list[Finding]:
 
     entry = manifest.get("entry")
     if not safe_relative(entry):
-        out.append(Finding("error", "entry must be a safe package-relative POSIX path"))
+        out.append(Finding("error", "entry must be a safe package-relative POSIX path; path segments must not start with '.'"))
     elif not (root / entry).is_file():
         out.append(Finding("error", f"entry does not exist as a regular file: {entry}"))
 
     icon = manifest.get("icon")
     if icon is not None:
         if not isinstance(icon, dict) or set(icon) != {"path", "sha256"} or not safe_relative(icon.get("path")):
-            out.append(Finding("error", "icon must contain only a safe path and lowercase sha256"))
+            out.append(Finding("error", "icon must contain only a safe path (no path segment starting with '.') and lowercase sha256"))
         else:
             icon_path = root / icon["path"]
             digest = icon.get("sha256")
