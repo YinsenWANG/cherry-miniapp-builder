@@ -15,7 +15,7 @@ sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 from package_app import package_archive
-from search_templates import load_catalog, rank, terms
+from search_templates import load_catalog, rank, score, terms
 from validate_app import validate
 
 
@@ -52,6 +52,11 @@ def main() -> int:
     assert {"a", "b"} <= terms("A/B") and "工资" in terms("工资计算")
     cli_rank = json.loads(run_python(str(ROOT / "scripts" / "search_templates.py"), "--limit", "2", "--json").stdout)
     assert [item["id"] for item in cli_rank] == [item["id"] for _, item in rank(catalog, "")[:2]]
+
+    benchmarks = json.loads((ROOT / "references" / "search-benchmarks.json").read_text(encoding="utf-8"))
+    for case in benchmarks:
+        ranked = rank(catalog, case["query"])
+        assert case["expected"] in [item["id"] for _, item in ranked[: case.get("top", 3)]], case
 
     with tempfile.TemporaryDirectory(prefix="cherry-miniapp-tools-") as temp:
         app = Path(temp) / "app"
@@ -107,7 +112,31 @@ def main() -> int:
         assert old.read_bytes() == b"old archive"
         assert not list(old.parent.glob(f".{old.name}.*.tmp"))
 
-    print("PASS: catalog retrieval, deterministic rank, scaffold, validation, packaging, and contract regressions")
+        ephemeral = Path(temp) / "ephemeral"
+        run_python(
+            str(ROOT / "scripts" / "scaffold_app.py"),
+                "--id", "com.example.calculator", "--name", "Calculator",
+                "--description", "A session-only calculator", "--archetype", "calculator",
+                "--ephemeral", "--output", str(ephemeral),
+        )
+        ephemeral_manifest = json.loads((ephemeral / "manifest.json").read_text(encoding="utf-8"))
+        assert ephemeral_manifest["permissions"] == []
+        assert "cherry.storage" not in (ephemeral / "app.js").read_text(encoding="utf-8")
+        assert not validate(ephemeral)
+
+        salary = Path(temp) / "salary"
+        run_python(
+            str(ROOT / "scripts" / "scaffold_app.py"),
+                "--id", "com.example.salary", "--name", "Salary",
+                "--description", "Compare salary scenarios", "--template-id", "hr-salary-calculator",
+                "--output", str(salary),
+        )
+        salary_manifest = json.loads((salary / "manifest.json").read_text(encoding="utf-8"))
+        assert salary_manifest["permissions"] == ["storage.get", "storage.set"]
+        assert salary_manifest["optionalPermissions"] == ["ai.chat", "file.export"]
+        assert "Calculate a trustworthy result" in (salary / "index.html").read_text(encoding="utf-8")
+
+    print("PASS: search benchmarks, deterministic rank, archetype scaffolds, validation checks, and deterministic packaging")
     return 0
 
 

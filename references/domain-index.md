@@ -2,6 +2,15 @@
 
 The searchable catalog currently contains 200 patterns across 25 domain families. Run `python3 scripts/search_templates.py "<user need>"` and read only returned records. Use `--category <id> --limit 8` to inspect a whole family. A record's capabilities are possible capabilities (须按实际调用重推最小 leaf), never a permission grant.
 
+Every result now carries four build decisions in addition to its domain workflow:
+
+- one of twelve product archetypes from [archetypes.md](archetypes.md);
+- concrete required capabilities for the core loop;
+- optional capabilities that must fail gracefully;
+- an AI mode: `core`, `enhancement`, or `none`.
+
+These are opinionated one-shot defaults, not permissions inferred from a category. Re-check them against the exact requested workflow before packaging.
+
 | Category id | Coverage |
 |---|---|
 | `data-analytics` | KPI, CSV profiling, cohort/funnel, anomaly, forecast, survey, experiment, narrative reporting |

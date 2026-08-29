@@ -34,6 +34,10 @@ SEMVER_RE = re.compile(
     r"(?:-(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?"
     r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
 )
+MANIFEST_FIELDS = {
+    "id", "name", "description", "version", "entry", "icon", "releaseNotes",
+    "permissions", "optionalPermissions", "network", "update",
+}
 
 
 @dataclass(frozen=True)
@@ -109,6 +113,13 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
         r"serviceWorker\.register": "service workers are blocked",
         r"\bwindow\.open\s*\(": "popups are blocked",
         r"show(?:Open|Save|Directory)FilePicker\s*\(": "File System Access pickers are denied",
+        r"\b(?:new\s+)?(?:Shared)?Worker\s*\(": "workers are blocked; keep computation in the page",
+        r"\bRTCPeerConnection\s*\(": "WebRTC is blocked",
+        r"\bnavigator\.sendBeacon\s*\(": "sendBeacon is blocked; use cherry.network.fetch",
+        r"\bnavigator\.(?:geolocation|mediaDevices)\b": "browser permission APIs are blocked",
+        r"\bNotification\s*\(": "browser notifications are blocked; use cherry.notification.show",
+        r"\bcaches\.(?:open|match|keys|delete)\s*\(": "Cache API is unavailable",
+        r"\bdocument\.cookie\b": "cookies are unavailable",
     }
     seen: set[str] = set()
     for path, text in combined:
@@ -127,6 +138,12 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
             re.I,
         ):
             out.append(Finding("warning", f"{relative}: remote runtime assets are blocked; bundle them"))
+        if re.search(r"\bfetch\s*\(\s*['\"]https?://", text, re.I) or re.search(r"\bXMLHttpRequest\s*\(", text):
+            out.append(Finding("warning", f"{relative}: direct outbound browser requests are blocked; use cherry.network.fetch"))
+        if re.search(r"<\s*(?:iframe|frame)\b", text, re.I):
+            out.append(Finding("warning", f"{relative}: frames are blocked"))
+        if re.search(r"<\s*form\b[^>]*\baction\s*=", text, re.I):
+            out.append(Finding("warning", f"{relative}: form navigation is blocked; handle submission inside the app"))
 
     joined = "\n".join(text for _, text in combined)
     call_to_grant = {
@@ -141,6 +158,10 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
     for call, grant in call_to_grant.items():
         if call in joined and grant not in declarations:
             out.append(Finding("warning", f"heuristic: source mentions {call}; confirm actual calls and declare the minimal permission {grant} if needed"))
+
+    used_grants = {grant for call, grant in call_to_grant.items() if call in joined}
+    for declaration in sorted(declarations - used_grants):
+        out.append(Finding("warning", f"manifest declares {declaration} but no matching window.cherry call was found"))
 
     html_files = [text for path, text in combined if path.suffix.lower() in {".html", ".htm"}]
     if html_files and not any('/__cherry/theme.css' in text for text in html_files):
@@ -163,6 +184,9 @@ def validate(root: Path) -> list[Finding]:
         return [Finding("error", f"manifest.json is not valid UTF-8 JSON: {error}")]
     if not isinstance(manifest, dict):
         return [Finding("error", "manifest.json root must be an object")]
+    unsupported = sorted(set(manifest) - MANIFEST_FIELDS)
+    if unsupported:
+        out.append(Finding("error", f"manifest contains unsupported packaged fields: {', '.join(unsupported)}"))
 
     app_id = manifest.get("id")
     if not isinstance(app_id, str) or len(app_id) > 120 or not ID_RE.fullmatch(app_id):
