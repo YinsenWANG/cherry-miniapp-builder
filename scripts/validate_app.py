@@ -146,6 +146,22 @@ def scan_sources(root: Path, manifest: dict, out: list[Finding]) -> None:
             out.append(Finding("warning", f"{relative}: form navigation is blocked; handle submission inside the app"))
 
     joined = "\n".join(text for _, text in combined)
+    dialog_candidate = any(re.search(
+        r"<dialog\b|<[^>]+\b(?:role\s*=\s*['\"]dialog['\"]|aria-modal\s*=\s*['\"]true['\"])",
+        text,
+        re.I,
+    ) for path, text in combined if path.suffix.lower() in {".html", ".htm"})
+    close_implementation = any(re.search(pattern, joined, re.I) for pattern in (
+        r"\bmethod\s*=\s*['\"]dialog['\"]",
+        r"\.close\s*\(",
+        r"\.removeAttribute\s*\(\s*['\"]open['\"]",
+        r"\.hidden\s*=\s*true\b",
+        r"\.classList\.(?:add|remove|toggle)\s*\(\s*['\"](?:hidden|closed|open|is-open)['\"]",
+        r"(?:close|cancel)[A-Za-z0-9_$]*\s*\.addEventListener\s*\(\s*['\"](?:click|keydown)['\"]",
+    ))
+    if dialog_candidate and not close_implementation:
+        out.append(Finding("warning", "heuristic: dialog/modal found but no reachable close implementation was detected; verify close button, backdrop, and Escape"))
+
     call_to_grant = {
         "cherry.ai.chat": "ai.chat",
         "cherry.storage.get": "storage.get", "cherry.storage.set": "storage.set",
