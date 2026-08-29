@@ -9,12 +9,14 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
-from package_app import package_archive
+from package_app import handoff_archive, main as package_main, package_archive
 from search_templates import load_catalog, rank, score, terms
 from validate_app import validate
 
@@ -38,6 +40,16 @@ def run_python(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def main() -> int:
+    contract = (ROOT / "references" / "technical-contract.md").read_text(encoding="utf-8")
+    playbook = (ROOT / "references" / "build-playbook.md").read_text(encoding="utf-8")
+    modal_example = (ROOT / "assets" / "modal-example.html").read_text(encoding="utf-8")
+    for marker in ('role="dialog"', 'aria-modal="true"', "backdrop", "Escape", "restore focus", "max-height", "cherry.ai.cancel(callId)", "cherry.file.export"):
+        assert marker in contract, marker
+    for marker in ("backdrop-self", "idempotent close", "unique `callId`", "ordinary page"):
+        assert marker in playbook, marker
+    for marker in ('aria-modal="true"', "closeButton.addEventListener", "modal.addEventListener", "document.addEventListener", "event.key !== 'Escape'", "opener?.focus", "max-height", "overflow: auto", "cancelButton.disabled = false", "callId", "cherry.ai.cancel", "closeModal();\n      await cherry.file.export"):
+        assert marker in modal_example, marker
+
     catalog = load_catalog(ROOT)
     assert len(catalog) == 200
     for query, expected in {
@@ -72,6 +84,48 @@ def main() -> int:
             assert {"manifest.json", "index.html", "app.js", "styles.css"} <= set(package.namelist())
             assert json.loads(package.read("manifest.json"))["id"] == "com.example.smoke"
 
+        def unexpected_runner(*args, **kwargs):
+            raise AssertionError((args, kwargs))
+
+        default_output = StringIO()
+        default_archive = Path(temp) / "default-no-handoff.miniapp"
+        with redirect_stdout(default_output):
+            assert package_main([str(app), "--output", str(default_archive)], runner=unexpected_runner, platform="darwin") == 0
+        assert default_archive.is_file()
+        assert "Manual install:" in default_output.getvalue()
+
+        calls = []
+        def recording_runner(command, **kwargs):
+            calls.append((command, kwargs))
+
+        handoff_output = StringIO()
+        with redirect_stdout(handoff_output):
+            handoff_archive(default_archive.resolve(), platform="darwin", runner=recording_runner)
+        assert calls == [
+            (["pbcopy"], {"check": True, "input": str(default_archive.resolve()), "text": True}),
+            (["open", "-R", str(default_archive.resolve())], {"check": True}),
+            (["open", "cherrystudio://navigate/app/mini-app/"], {"check": True}),
+        ]
+        assert handoff_output.getvalue().count("HANDOFF OK:") == 3
+
+        unsupported_output = StringIO()
+        with redirect_stdout(unsupported_output):
+            handoff_archive(default_archive.resolve(), platform="linux", runner=unexpected_runner)
+        assert "unsupported on this platform" in unsupported_output.getvalue()
+
+        failed_calls = []
+        def failing_runner(command, **kwargs):
+            failed_calls.append(command)
+            if command[0] == "pbcopy":
+                raise OSError("clipboard unavailable")
+
+        failed_output = StringIO()
+        with redirect_stdout(failed_output):
+            assert package_main([str(app), "--output", str(Path(temp) / "failed-handoff.miniapp"), "--handoff"], runner=failing_runner, platform="darwin") == 0
+        assert len(failed_calls) == 3
+        assert "HANDOFF FAILED:" in failed_output.getvalue()
+        assert "Manual install:" in failed_output.getvalue()
+
         for version, valid in {"1.0.0-01": False, "1.0.0-a..b": False, "1.0.0-rc.1+build.7": True}.items():
             write_manifest(app, version=version)
             assert bool(errors(app)) is not valid
@@ -101,6 +155,18 @@ def main() -> int:
         assert any("remote runtime assets" in finding.message for finding in validate(app))
         (app / "remote.css").write_text("@import url(https://example.com/a.css);", encoding="utf-8")
         assert any("remote runtime assets" in finding.message for finding in validate(app))
+        dialog_warning = "heuristic: dialog/modal found but no reachable close implementation was detected; verify close button, backdrop, and Escape"
+        (app / "dialog.html").write_text('<div role="dialog" aria-modal="true">No close path</div>', encoding="utf-8")
+        dialog_findings = validate(app)
+        assert sum(finding.message == dialog_warning for finding in dialog_findings) == 1
+        assert not [finding for finding in dialog_findings if finding.level == "error"]
+        warning_archive = Path(temp) / "dialog-warning.miniapp"
+        assert f"WARNING: {dialog_warning}" in run_python(str(ROOT / "scripts" / "package_app.py"), str(app), "--output", str(warning_archive)).stdout
+        (app / "dialog.js").write_text("closeButton.addEventListener('click', closeModal); function closeModal() { modal.hidden = true; }", encoding="utf-8")
+        assert not any(finding.message == dialog_warning for finding in validate(app))
+        (app / "dialog.html").write_text('<div class="overlay">Overlay copy says role=&quot;dialog&quot;.</div>', encoding="utf-8")
+        (app / "dialog.js").unlink()
+        assert not any(finding.message == dialog_warning for finding in validate(app))
         old = Path(temp) / "old.miniapp"
         old.write_bytes(b"old archive")
         try:
@@ -123,6 +189,7 @@ def main() -> int:
         assert ephemeral_manifest["permissions"] == []
         assert "cherry.storage" not in (ephemeral / "app.js").read_text(encoding="utf-8")
         assert not validate(ephemeral)
+        assert not any(finding.message == dialog_warning for finding in validate(ephemeral))
 
         salary = Path(temp) / "salary"
         run_python(

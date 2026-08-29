@@ -86,6 +86,16 @@ The same app can have multiple live instances. JavaScript memory is per instance
 
 Include `<link rel="stylesheet" href="/__cherry/theme.css">`. Use the stable semantic variables such as `--background`, `--foreground`, `--card`, `--primary`, `--muted`, `--border`, `--success`, `--warning`, `--error`, and `--radius`. The stylesheet supplies light and dark values but no reset or component styles. Bundle icons and compiled CSS locally.
 
+### Modal completion
+
+- Give every modal a focusable close button, backdrop-click and `Escape` close paths, plus `role="dialog"`, `aria-modal="true"`, an accessible name; move focus inside and restore focus to its opener.
+- In narrow panes, limit modal `max-height`, scroll its content region, and keep its header, footer, and close control visible.
+- Pending work may disable only duplicate-submit controls; close, backdrop, `Escape`, and cancel remain usable, and late results neither reopen closed modals nor update unmounted UI.
+- Long-running `cherry.ai.chat` calls use a unique `callId`; pending UI exposes cancel and calls ungated `cherry.ai.cancel(callId)`, preserving partial output.
+- Before `cherry.file.export`, remove app-owned modal/backdrop UI so the host Save dialog takes over; update ordinary page status after it returns.
+- Use independent `addEventListener` bindings for close paths. A static validator warning is only a review prompt and cannot prove runtime reachability.
+- See `assets/modal-example.html` for an optional reference implementation; apps without modals need not copy it.
+
 ## Appendices: read only when applicable
 
 The following precise capability, distribution, and audit details remain part of the contract, but a simple local build need not load them all.

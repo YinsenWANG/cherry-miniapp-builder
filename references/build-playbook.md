@@ -61,6 +61,14 @@ Use [archetypes.md](archetypes.md) for the full twelve-pattern completion contra
 - Use domain language, not generic labels such as “Submit” or “Process”.
 - When applicable, keep large datasets responsive with pagination, filtering, aggregation, or virtualization; give charts textual summaries; and check deterministic calculations against at least three meaningful cases including an edge case.
 
+For any modal, implement and review the [modal completion contract](technical-contract.md#modal-completion):
+
+- bind close, backdrop-self click, and `Escape` independently with `addEventListener`; move focus inside on open and restore it on every idempotent close;
+- keep the close control and footer visible while only the content region scrolls in a narrow pane;
+- while pending, lock duplicate submission only, keep close/cancel usable, and ignore late UI updates after close;
+- cancel long AI work with its unique `callId` and preserve partial output;
+- remove app-owned overlays before calling `cherry.file.export` and report the result on the ordinary page;
+
 ## 5. Implement resilient host access
 
 Centralize `window.cherry` calls in a small adapter. The UI should not scatter permission and error branching across components.
@@ -110,6 +118,8 @@ Keep the prompt inside the app's declared purpose. Stream into an accessible liv
 ## 8. Package and verify
 
 Run the validator before packaging. Inspect the output archive to ensure `manifest.json` and the entry are at its root. For remote distribution, separately compute the archive hash and size, then create the external distribution manifest—never place its `package` block inside the archive.
+
+After packaging, follow the printed manual install steps. On macOS, optional `--handoff` copies the archive path, reveals it in Finder, and navigates Cherry Studio to the Mini Apps list; it does not open the `+` panel, prefill the picker, or approve consent. The user still chooses `+ → Package`, selects the file, reviews permissions, and confirms installation.
 
 Treat validator warnings as review prompts. Remove unused permissions and known blocked browser APIs; suppress nothing merely to get a green line. Static checks can miss dynamic property access and cannot prove runtime behavior.
 

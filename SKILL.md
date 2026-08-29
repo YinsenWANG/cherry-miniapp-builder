@@ -27,7 +27,9 @@ Turn an idea into a usable, installable Cherry Studio mini app. This portable Ag
 - Build one coherent primary job with realistic fictional data, understandable first-run and empty/loading/error/success states, editable assumptions, and graceful optional-permission fallback.
 - Use AI only with bounded context and a useful non-AI path where practical. Check availability, stream visibly, preserve input, support cancel and retry.
 - Persist meaningful state as it changes; treat startup as recovery and hidden state as a checkpoint. Adapt to theme, keyboard use, narrow panes, locale changes, and revoked permissions.
-- Run `python3 scripts/validate_app.py <directory>`, address errors and relevant warnings, then `python3 scripts/package_app.py <directory>`.
+- When using a modal, follow the technical contract and keep close/cancel available while work is pending.
+- Validate, then package with `python3 scripts/package_app.py <directory>`; optionally add `--handoff` on macOS to copy/reveal the archive and navigate to the Mini Apps list.
+- The user then chooses `+ → Package`, selects the located file, and personally reviews and confirms permissions; navigation does not prefill a file, open the install panel, or confirm consent.
 - Deliver the source directory, `.miniapp`, core-flow and permission summary, validation result, and necessary user-owned configuration. Do not claim runtime testing without a compatible Cherry build.
 
 Use `com.example.<slug>` as a replaceable development id when needed; never use `com.cherrystudio.*`. Resolve resources relative to this file; use the host's normal tools, and disclose if Python helpers could not run.

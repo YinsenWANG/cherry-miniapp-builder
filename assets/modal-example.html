@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cancelable modal example</title>
+  <link rel="stylesheet" href="/__cherry/theme.css">
+  <style>
+    body { margin: 0; padding: 24px; color: var(--foreground); background: var(--background); font: 14px system-ui; }
+    button { font: inherit; }
+    .modal { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 12px; background: rgb(0 0 0 / 45%); }
+    .modal[hidden] { display: none; }
+    .panel { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(520px, 100%); max-height: calc(100vh - 24px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+    .header, .footer { display: flex; align-items: center; gap: 8px; padding: 12px; }
+    .header { justify-content: space-between; border-bottom: 1px solid var(--border); }
+    .body { overflow: auto; padding: 16px; }
+    .footer { justify-content: flex-end; border-top: 1px solid var(--border); }
+    .close { min-width: 36px; min-height: 36px; }
+  </style>
+</head>
+<body>
+  <button id="open">Open AI draft</button>
+  <button id="export">Export current draft</button>
+  <p id="status" aria-live="polite">Ready.</p>
+
+  <div id="modal" class="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <section class="panel">
+      <header class="header">
+        <h2 id="modal-title">Create a draft</h2>
+        <button id="close" class="close" type="button" aria-label="Close">×</button>
+      </header>
+      <div class="body">
+        <label>Instructions <textarea id="prompt" rows="8"></textarea></label>
+        <pre id="output" aria-live="polite"></pre>
+      </div>
+      <footer class="footer">
+        <button id="cancel" type="button">Cancel generation</button>
+        <button id="submit" type="button">Generate</button>
+      </footer>
+    </section>
+  </div>
+
+  <script>
+    const modal = document.querySelector('#modal');
+    const openButton = document.querySelector('#open');
+    const closeButton = document.querySelector('#close');
+    const cancelButton = document.querySelector('#cancel');
+    const submitButton = document.querySelector('#submit');
+    const prompt = document.querySelector('#prompt');
+    const output = document.querySelector('#output');
+    const status = document.querySelector('#status');
+    let opener = null;
+    let callId = null;
+    let activeGeneration = null;
+
+    function openModal(event) {
+      opener = event.currentTarget;
+      modal.hidden = false;
+      prompt.focus();
+    }
+
+    function closeModal() {
+      if (modal.hidden) return;
+      modal.hidden = true;
+      activeGeneration = null;
+      submitButton.disabled = false;
+      opener?.focus();
+    }
+
+    openButton.addEventListener('click', openModal);
+    closeButton.addEventListener('click', closeModal);
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape' || modal.hidden) return;
+      closeModal();
+    });
+    cancelButton.addEventListener('click', async () => {
+      if (callId) await cherry.ai.cancel(callId);
+    });
+    submitButton.addEventListener('click', async () => {
+      const generation = crypto.randomUUID();
+      callId = generation;
+      activeGeneration = generation;
+      submitButton.disabled = true;
+      cancelButton.disabled = false;
+      try {
+        await cherry.ai.chat({ messages: [{ role: 'user', content: prompt.value }] }, {
+          callId,
+          onChunk: (chunk) => { if (activeGeneration === generation) output.textContent += chunk; }
+        });
+      } finally {
+        if (callId === generation) callId = null;
+        if (activeGeneration === generation) submitButton.disabled = false;
+      }
+    });
+    document.querySelector('#export').addEventListener('click', async () => {
+      closeModal();
+      await cherry.file.export({ name: 'draft.txt', data: btoa(output.textContent) });
+      status.textContent = 'Export finished.';
+    });
+  </script>
+</body>
+</html>
