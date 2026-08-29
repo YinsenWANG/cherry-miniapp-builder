@@ -5,12 +5,45 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import subprocess
 import sys
 import tempfile
 import zipfile
 from pathlib import Path
 
 from validate_app import MAX_ARCHIVE, validate
+
+
+INSTALL_STEPS = (
+    "1. Copy the absolute archive path printed above.",
+    "2. Locate the archive in your file manager.",
+    "3. In Cherry Studio, choose Mini Apps → + → Package → Choose file → review permissions → Install.",
+)
+
+
+def print_install_steps() -> None:
+    print("Manual install:")
+    for step in INSTALL_STEPS:
+        print(step)
+
+
+def handoff_archive(archive: Path, *, platform: str = sys.platform, runner=subprocess.run) -> None:
+    """Best-effort macOS handoff; packaging success never depends on these helpers."""
+    if platform != "darwin":
+        print("HANDOFF: unsupported on this platform; use the manual steps above.")
+        return
+    actions = (
+        ("copied archive path to clipboard", ["pbcopy"], {"input": str(archive), "text": True}),
+        ("revealed archive in Finder", ["open", "-R", str(archive)], {}),
+        ("opened the Cherry Studio Mini Apps list", ["open", "cherrystudio://navigate/app/mini-app/"], {}),
+    )
+    for success, command, options in actions:
+        try:
+            runner(command, check=True, **options)
+        except (OSError, subprocess.CalledProcessError) as error:
+            print(f"HANDOFF FAILED: {success}: {error}")
+        else:
+            print(f"HANDOFF OK: {success}")
 
 
 def package_archive(root: Path, output: Path, max_archive: int = MAX_ARCHIVE) -> tuple[int, str]:
@@ -42,11 +75,12 @@ def package_archive(root: Path, output: Path, max_archive: int = MAX_ARCHIVE) ->
             temporary.unlink(missing_ok=True)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None, *, runner=subprocess.run, platform: str = sys.platform) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("app", type=Path)
     parser.add_argument("--output", type=Path)
-    args = parser.parse_args()
+    parser.add_argument("--handoff", action="store_true", help="On macOS, copy and reveal the archive and open the Mini Apps list")
+    args = parser.parse_args(argv)
     root = args.app.resolve()
     output = (args.output or root.with_suffix(".miniapp")).resolve()
     try:
@@ -76,6 +110,9 @@ def main() -> int:
     print(output)
     print(f"size={size}")
     print(f"sha256={digest}")
+    print_install_steps()
+    if args.handoff:
+        handoff_archive(output, platform=platform, runner=runner)
     return 0
 
 
