@@ -12,10 +12,12 @@ import zipfile
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
+from cli_output import configure_output
 from package_app import handoff_archive, main as package_main, package_archive
 from search_templates import load_catalog, rank, score, terms
 from validate_app import validate
@@ -36,7 +38,43 @@ def write_manifest(app: Path, **changes: object) -> None:
 
 
 def run_python(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["python3", "-B", *args], check=True, capture_output=True, text=True, env=os.environ.copy())
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    try:
+        return subprocess.run([sys.executable, "-B", *args], check=True, capture_output=True, text=True, encoding="utf-8", env=env)
+    except subprocess.CalledProcessError as error:
+        # Captured output would otherwise disappear behind the parent's traceback.
+        for output in (error.stdout, error.stderr):
+            if output:
+                print(output, end="" if output.endswith("\n") else "\n", file=sys.stderr)
+        raise
+
+
+def check_symlink_rejection(app: Path, *, platform: str = sys.platform) -> None:
+    app = app.resolve()
+    link = app / "broken.js"
+    try:
+        link.symlink_to(app / "missing.js")
+    except OSError as error:
+        if platform != "win32" or getattr(error, "winerror", None) != 1314:
+            raise
+        print("SKIP: native symlink creation requires Windows privilege (winerror 1314); checking simulated symlink rejection")
+        # Exercise the real validator and traversal with only the OS predicate
+        # simulated. Never skip the rejection assertion on restricted runners.
+        link.write_text("", encoding="utf-8")
+        native_is_symlink = Path.is_symlink
+        try:
+            with patch.object(Path, "is_symlink", lambda path: path == link or native_is_symlink(path)):
+                assert any("symbolic link is not allowed" in message for message in errors(app))
+        finally:
+            link.unlink()
+        print("PASS: simulated symlink rejection")
+    else:
+        try:
+            assert any("symbolic link is not allowed" in message for message in errors(app))
+        finally:
+            link.unlink()
+        print("PASS: native symlink rejection")
 
 
 def main() -> int:
@@ -102,7 +140,7 @@ def main() -> int:
         with redirect_stdout(handoff_output):
             handoff_archive(default_archive.resolve(), platform="darwin", runner=recording_runner)
         assert calls == [
-            (["pbcopy"], {"check": True, "input": str(default_archive.resolve()), "text": True}),
+            (["pbcopy"], {"check": True, "input": str(default_archive.resolve()), "text": True, "encoding": "utf-8"}),
             (["open", "-R", str(default_archive.resolve())], {"check": True}),
             (["open", "cherrystudio://navigate/app/mini-app/"], {"check": True}),
         ]
@@ -141,9 +179,7 @@ def main() -> int:
         write_manifest(app, icon={"path": "icon.svg", "sha256": "0" * 64})
         assert any("icon.sha256 does not match" in message for message in errors(app))
         write_manifest(app, icon=None)
-        (app / "broken.js").symlink_to(app / "missing.js")
-        assert any("symbolic link is not allowed" in message for message in errors(app))
-        (app / "broken.js").unlink()
+        check_symlink_rejection(app)
         (app / "comment.js").write_text("// cherry.ai.chat", encoding="utf-8")
         findings = validate(app)
         assert any(finding.level == "warning" and "heuristic" in finding.message for finding in findings)
@@ -208,4 +244,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_output()
     raise SystemExit(main())

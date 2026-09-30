@@ -6,6 +6,7 @@ from __future__ import annotations
 import collections
 from pathlib import Path
 
+from cli_output import configure_output
 from search_templates import CATEGORY_ALIASES, load_catalog, rank
 
 
@@ -97,4 +98,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_output()
     raise SystemExit(main())

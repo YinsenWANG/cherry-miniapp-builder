@@ -12,6 +12,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+from cli_output import configure_output
+
 
 MAX_ARCHIVE = 50 * 1024 * 1024
 MAX_EXTRACTED = 100 * 1024 * 1024
@@ -316,4 +318,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_output()
     sys.exit(main())
