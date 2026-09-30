@@ -10,6 +10,7 @@ import re
 import shutil
 from pathlib import Path
 
+from cli_output import configure_output
 from search_templates import load_catalog
 from validate_app import GRANTS
 
@@ -120,4 +121,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_output()
     raise SystemExit(main())

@@ -26,3 +26,5 @@ jobs:
         run: python scripts/validate_catalog.py
       - name: Test complete toolchain
         run: python scripts/test_tools.py
+      - name: Test CLI reliability
+        run: python -B scripts/test_cli_reliability.py -v

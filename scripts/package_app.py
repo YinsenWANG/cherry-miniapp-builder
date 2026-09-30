@@ -11,6 +11,7 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+from cli_output import configure_output
 from validate_app import MAX_ARCHIVE, validate
 
 
@@ -33,7 +34,7 @@ def handoff_archive(archive: Path, *, platform: str = sys.platform, runner=subpr
         print("HANDOFF: unsupported on this platform; use the manual steps above.")
         return
     actions = (
-        ("copied archive path to clipboard", ["pbcopy"], {"input": str(archive), "text": True}),
+        ("copied archive path to clipboard", ["pbcopy"], {"input": str(archive), "text": True, "encoding": "utf-8"}),
         ("revealed archive in Finder", ["open", "-R", str(archive)], {}),
         ("opened the Cherry Studio Mini Apps list", ["open", "cherrystudio://navigate/app/mini-app/"], {}),
     )
@@ -117,4 +118,5 @@ def main(argv: list[str] | None = None, *, runner=subprocess.run, platform: str 
 
 
 if __name__ == "__main__":
+    configure_output()
     sys.exit(main())

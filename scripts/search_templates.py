@@ -8,6 +8,8 @@ import json
 import re
 from pathlib import Path
 
+from cli_output import configure_output
+
 
 CATEGORY_ALIASES = {
     "data-analytics": {"数据分析", "商业分析", "bi", "指标", "漏斗", "实验"},
@@ -159,4 +161,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    configure_output()
     raise SystemExit(main())

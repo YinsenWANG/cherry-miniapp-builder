@@ -79,12 +79,15 @@ python3 scripts/scaffold_app.py --id com.example.maintenance --name "维护助�
 python3 scripts/validate_app.py /tmp/maintenance-app
 python3 scripts/package_app.py /tmp/maintenance-app
 python3 -B scripts/test_tools.py
+python3 -B scripts/test_cli_reliability.py -v
 python3 -B scripts/validate_catalog.py
 ```
 
 Use `python` or `py -3` instead of `python3` where appropriate. The validator catches manifest errors and common sandbox incompatibilities; packaging prints heuristic warnings but rejects only errors. The tool checks use `-B` to avoid creating bytecode in the skill tree. A green result does not replace runtime testing in a compatible Cherry Studio build.
 
 `agents/openai.yaml` contains optional Codex UI metadata only. Claude Code, Pi Agent, and Cherry Studio ignore it and consume the shared `SKILL.md` directly.
+
+CLI stdout and stderr use UTF-8, including redirected output, JSON, paths, and diagnostics, regardless of the console's default encoding or `PYTHONIOENCODING`. Consumers should decode captured output as UTF-8. Toolchain tests launch children with the running Python interpreter and retain their output when a child fails. If Windows denies native symlink creation with error 1314, tests report that limitation and still exercise the validator's symlink rejection using a simulated filesystem predicate; other creation errors fail the test.
 
 ## Upstream status
 
